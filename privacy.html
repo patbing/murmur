@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MURMUR — Privacy</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111'/%3E%3Cpath d='M8 21V11l8 6 8-6v10' stroke='%23f5f1e8' stroke-width='2.2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">M</span>
+        <div>
+          <h1>MURMUR</h1>
+          <p class="tag">Privacy — what leaves this browser, and what never does.</p>
+        </div>
+      </div>
+      <div class="account"><a class="btn ghost" href="./index.html">Back to the app</a></div>
+    </header>
+
+    <main>
+      <article class="card">
+        <h2>The short version</h2>
+        <p>
+          MURMUR has no server of its own. There is no account system, no analytics, no
+          cookie, no logging endpoint. Your images and messages stay in this tab unless you
+          explicitly ask a Pollinations model to look at one.
+        </p>
+      </article>
+
+      <article class="card">
+        <h2>What stays on your device</h2>
+        <ul>
+          <li>
+            <strong>Images.</strong> A cover you generate is decoded from base64 in this tab.
+            A file you drop in is read with <code>FileReader</code>-equivalent browser APIs.
+            Neither is uploaded anywhere by MURMUR.
+          </li>
+          <li>
+            <strong>The message.</strong> It is embedded in the pixels and, if you set one, encrypted
+            with WebCrypto (PBKDF2 → AES-GCM) before embedding. It is never sent to a model and
+            never leaves the tab.
+          </li>
+          <li>
+            <strong>The output PNG.</strong> Created with <code>canvas.toBlob</code> and handed to
+            your downloads. It is not stored on a server.
+          </li>
+          <li>
+            <strong>Your Pollen key.</strong> Stored in this origin's <code>localStorage</code> under
+            <code>murmurKey</code>. “Disconnect” deletes it. It is only ever sent as an
+            <code>Authorization: Bearer</code> header to <code>gen.pollinations.ai</code> — never in a
+            URL, never to a third party.
+          </li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>What is sent to Pollinations</h2>
+        <p>Only when you press a button that needs it:</p>
+        <ul>
+          <li>
+            <strong>Generate cover</strong> — your text prompt, the model id and a size, to
+            <code>gen.pollinations.ai/v1/images/generations</code>. This costs Pollen and is
+            attributed to your own balance.
+          </li>
+          <li>
+            <strong>Ask a model</strong> (Seek tab, opt-in checkbox) — a 512 px JPEG copy of the
+            inspected image plus a fixed instruction, to
+            <code>gen.pollinations.ai/v1/chat/completions</code>. That copy contains the image,
+            including any payload you just hid in it, at reduced resolution.
+          </li>
+          <li>
+            <strong>Connect / catalogue</strong> — the OAuth device flow at
+            <code>enter.pollinations.ai</code>, then a <code>GET /v1/models</code> to see which
+            models your balance may use.
+          </li>
+        </ul>
+        <p class="hint">
+          Pollinations' own handling of those requests is described in their privacy notice.
+          MURMUR cannot make promises about a service it does not run; it can only be precise
+          about what it hands over.
+        </p>
+      </article>
+
+      <article class="card">
+        <h2>What MURMUR does not do</h2>
+        <ul>
+          <li>No analytics, telemetry, error reporting or “usage pings”.</li>
+          <li>No cookies. The only persistent storage is the two <code>localStorage</code> keys
+            (<code>murmurKey</code>, <code>murmurModel</code>).</li>
+          <li>No third-party scripts, fonts or CDNs. Everything is served from this origin.</li>
+          <li>No hidden model calls. The Bench, the codec and the deterministic detectors call
+            nothing at all.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Clearing it</h2>
+        <p>
+          Press <strong>Disconnect</strong> to remove the key, or clear site data in your browser.
+          Downloaded PNGs are ordinary files under your control — deleting them from disk deletes
+          the message with them.
+        </p>
+        <p class="hint">
+          A hidden payload is not a secret-sharing scheme on its own. Anyone who has the file can
+          read an unencrypted payload with the same open codec; use a passphrase if that matters.
+        </p>
+      </article>
+    </main>
+
+    <footer>
+      <p><a href="./index.html">MURMUR</a> · <a href="./README.md">How it works</a></p>
+    </footer>
+  </body>
+</html>

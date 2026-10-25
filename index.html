@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MURMUR — messages hidden in images, with the receipts</title>
+    <meta
+      name="description"
+      content="Hide a message in a picture's least significant bits, then measure whether it survives real platforms and whether a vision model can find it."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111'/%3E%3Cpath d='M8 21V11l8 6 8-6v10' stroke='%23f5f1e8' stroke-width='2.2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">M</span>
+        <div>
+          <h1>MURMUR</h1>
+          <p class="tag">Messages hidden in images — and the receipts to prove it survived.</p>
+        </div>
+      </div>
+      <div class="account">
+        <span id="account-state" class="pill">not connected</span>
+        <button id="connect" class="btn">Connect Pollen</button>
+        <button id="disconnect" class="btn ghost" hidden>Disconnect</button>
+      </div>
+    </header>
+
+    <main>
+      <nav class="tabs" role="tablist" aria-label="Mode">
+        <button role="tab" aria-selected="true" data-tab="hide" id="tab-hide">Hide</button>
+        <button role="tab" aria-selected="false" data-tab="seek" id="tab-seek">Seek</button>
+        <button role="tab" aria-selected="false" data-tab="bench" id="tab-bench">Bench</button>
+      </nav>
+
+      <!-- ------------------------------------------------------------- HIDE -->
+      <section id="panel-hide" class="panel" role="tabpanel" aria-labelledby="tab-hide">
+        <div class="grid">
+          <article class="card">
+            <h2>1 · Cover</h2>
+            <p class="hint">
+              The picture that carries the message. Generate one (price on the button, from the live catalogue), or use your own.
+            </p>
+            <label class="field">
+              <span>Describe the cover</span>
+              <textarea id="cover-prompt" rows="3" maxlength="600">a quiet kitchen table in the afternoon, half-drunk coffee, soft window light, no people</textarea>
+            </label>
+            <div class="row">
+              <button id="generate-cover" class="btn">Generate cover</button>
+              <label class="btn ghost file">
+                Use my image
+                <input id="cover-file" type="file" accept="image/png,image/jpeg,image/webp" />
+              </label>
+            </div>
+            <p id="cover-note" class="hint" role="status"></p>
+            <div class="preview"><canvas id="cover-canvas" width="512" height="512" aria-label="cover preview"></canvas></div>
+          </article>
+
+          <article class="card">
+            <h2>2 · What to hide</h2>
+            <label class="field">
+              <span>Message</span>
+              <textarea id="secret" rows="4" maxlength="2000" placeholder="Meet me at the second bench, 9pm.">Meet me at the second bench, 9pm.</textarea>
+            </label>
+            <label class="field">
+              <span>Passphrase <em>(optional — encrypts the payload)</em></span>
+              <input id="passphrase" type="password" maxlength="200" autocomplete="new-password" />
+            </label>
+            <div class="meter" aria-live="polite">
+              <div class="meter-bar"><span id="capacity-fill"></span></div>
+              <p id="capacity-text" class="hint">Load a cover to see the capacity.</p>
+            </div>
+            <button id="hide" class="btn primary" disabled>Hide it</button>
+            <p id="hide-note" class="hint" role="status"></p>
+          </article>
+        </div>
+
+        <article class="card" id="result-card" hidden>
+          <h2>3 · The receipt</h2>
+          <div class="row">
+            <div class="preview small"><canvas id="out-canvas" width="512" height="512" aria-label="output preview"></canvas></div>
+            <div class="stack">
+              <button id="download" class="btn primary">Download PNG</button>
+              <p class="hint">
+                Send the PNG as a <strong>file</strong>. Any app that re-encodes pictures (Instagram,
+                WhatsApp photo, X) rewrites the pixels and the message is gone — the table below shows
+                exactly what survives.
+              </p>
+            </div>
+          </div>
+          <table class="report">
+            <thead>
+              <tr><th>After</th><th>Payload</th><th>Bit errors</th></tr>
+            </thead>
+            <tbody id="survival-body"></tbody>
+          </table>
+          <p class="hint">
+            Measured in this browser, on this file, right now. No server is involved.
+          </p>
+        </article>
+      </section>
+
+      <!-- ------------------------------------------------------------- SEEK -->
+      <section id="panel-seek" class="panel" role="tabpanel" aria-labelledby="tab-seek" hidden>
+        <article class="card">
+          <h2>Inspect an image</h2>
+          <p class="hint">
+            Deterministic checks run locally (LSB pairing, PNG chunks, trailing bytes, SVG comments).
+            The model is a second opinion, not the verdict.
+          </p>
+          <label class="btn ghost file">
+            Choose image
+            <input id="seek-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+          </label>
+          <div id="seek-result" class="stack" aria-live="polite"></div>
+        </article>
+
+        <article class="card" id="seek-model-card" hidden>
+          <h2>Ask a model</h2>
+          <p class="hint" id="seek-cost">Connect to price this call.</p>
+          <label class="check">
+            <input id="seek-ask" type="checkbox" />
+            <span>Send a 512px copy to a vision model</span>
+          </label>
+          <button id="seek-run" class="btn" disabled>Ask</button>
+          <div id="seek-answer" class="answer" aria-live="polite"></div>
+        </article>
+      </section>
+
+      <!-- ------------------------------------------------------------ BENCH -->
+      <section id="panel-bench" class="panel" role="tabpanel" aria-labelledby="tab-bench" hidden>
+        <article class="card">
+          <h2>Can a vision model actually see a hidden payload?</h2>
+          <p class="hint">
+            We take the current cover, make <em>N</em> copies, hide a message in half of them, and ask a
+            vision model which ones are loaded. The pictures are visually identical to a person; only the
+            RGB least significant bits differ. Chance is 50%.
+          </p>
+          <div class="row">
+            <label class="field inline">
+              <span>Images</span>
+              <input id="bench-n" type="number" min="2" max="20" step="2" value="8" />
+            </label>
+            <label class="field inline">
+              <span>Vision model</span>
+              <select id="bench-model"><option value="">—</option></select>
+            </label>
+            <button id="bench-run" class="btn primary" disabled>Run</button>
+          </div>
+          <p id="bench-cost" class="hint">Connect and load a cover first.</p>
+          <div id="bench-out" aria-live="polite"></div>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        MURMUR keeps your key in this tab's local storage and sends it only as a bearer header.
+        <a href="./privacy.html">Privacy</a> · <a href="./README.md">How it works</a> ·
+        <a href="https://pollinations.ai" target="_blank" rel="noreferrer noopener">Built on Pollinations</a>
+      </p>
+    </footer>
+
+    <dialog id="device-dialog">
+      <h2>Connect Pollen</h2>
+      <p>Open this page and approve the code:</p>
+      <p class="code" id="device-code">····</p>
+      <p><a id="device-link" href="#" target="_blank" rel="noreferrer noopener">Open the approval page</a></p>
+      <p class="hint" id="device-status">Waiting for approval…</p>
+      <button id="device-cancel" class="btn ghost">Cancel</button>
+    </dialog>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

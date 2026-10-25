@@ -1,0 +1,12 @@
+{
+  "name": "murmur",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hide a message in an image's least significant bits — and measure whether it survives and whether a vision model can find it.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test",
+    "serve": "python -m http.server 8099"
+  }
+}
